@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from pydantic import BaseModel
 import spacy
 import re
@@ -8,6 +8,9 @@ import pandas as pd
 nlp = spacy.load("de_core_news_md")
 
 app = FastAPI()
+
+# Whitelist für harmlose Wörter, die nicht ersetzt werden sollen
+whitelist = {"hallo", "hi", "servus", "hey", "guten tag", "moin", "Guten Morgen", "Guten Mittag", "Guten Abend"}
 
 class TextInput(BaseModel):
     text: str
@@ -23,6 +26,10 @@ async def anonymize(input: TextInput):
         original = ent.text
         replacement = None
 
+        # Whitelist prüfen
+        if original.lower().strip() in whitelist:
+            continue
+
         if ent.label_ == "PER":
             parts = original.split()
             if len(parts) == 1:
@@ -36,6 +43,8 @@ async def anonymize(input: TextInput):
                 replacement = "[ADDRESS]"
             else:
                 replacement = "[CITY]"
+        elif ent.label_ == "MISC":
+            continue  # Ignoriere unklare MISC-Entitäten
         else:
             replacement = f"[{ent.label_}]"
 
